@@ -81,6 +81,7 @@ python main.py rtsp://192.168.1.100:8080/video
 ```bash
 python main.py C:\Users\Lenovo\OneDrive\Desktop\project_real_camera\video.mp4
 ```
+Обработанный видео-файл, будет записан, в корень проекта.
 
 ## Примечания
 
