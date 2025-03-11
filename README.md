@@ -19,7 +19,7 @@
 
 ```bash
 git clone https://github.com/SergSof/Real-Time-Object-Detection
-cd project_real_camera
+cd Real-Time-Object-Detection
 ```
 
 ## Установка зависимостей
