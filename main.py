@@ -10,7 +10,7 @@ def get_bbox(image, model, colors):
                     save=False, 
                     imgsz=640, 
                     conf=0.4,
-                    iou=0.3
+                    iou=0.3,
                     verbose=False)    
 
     # Обрабатываем результаты
