@@ -4,8 +4,47 @@ from ultralytics import YOLO
 import sys
 import os
 import time
-import subprocess
 import threading
+try:
+    from screeninfo import get_monitors
+except ImportError:
+    print("Библиотека screeninfo не установлена. Используем стандартное разрешение.")
+
+# Функция для получения разрешения экрана
+def get_screen_resolution():
+    try:
+        # Попытка использовать screeninfo
+        monitors = get_monitors()
+        primary_monitor = monitors[0]
+        return primary_monitor.width, primary_monitor.height
+    except:
+        try:
+            # Альтернативный метод для Windows
+            import ctypes
+            user32 = ctypes.windll.user32
+            return user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
+        except:
+            # Стандартное разрешение, если не удалось определить
+            return 1920, 1080
+
+# Функция для изменения размера изображения с сохранением пропорций
+def resize_with_aspect_ratio(image, width=None, height=None):
+    if image is None:
+        return None
+        
+    h, w = image.shape[:2]
+    
+    if width is None and height is None:
+        return image
+    
+    if width is None:
+        r = height / h
+        dim = (int(w * r), height)
+    else:
+        r = width / w
+        dim = (width, int(h * r))
+    
+    return cv2.resize(image, dim)
 
 # Функция для предикта и получения ббоксов
 def get_bbox(image, model, colors):
@@ -123,6 +162,23 @@ class RTSPVideoStream:
             self.stream.release()
 
 def main():
+    # Получаем разрешение экрана
+    screen_width, screen_height = get_screen_resolution()
+    
+    # Настраиваем размер окна (четверть экрана)
+    window_width = screen_width // 2
+    window_height = screen_height // 2
+    
+    # Имя окна
+    window_name = 'Real-Time Object Detection'
+    
+    # Создаем окно с возможностью изменения размера
+    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+    cv2.resizeWindow(window_name, window_width, window_height)
+    
+    # Перемещаем окно в верхний левый угол
+    cv2.moveWindow(window_name, 0, 0)
+    
     # Путь к модели
     model_path = 'fartuk_P92-R85_B_s1_v11.pt'
     model = YOLO(model_path)
@@ -215,7 +271,16 @@ def main():
             if record_video:  # Записываем кадр в выходное видео, если нужно вести запись
                 out.write(processed_frame)
             else:
-                cv2.imshow('Real-Time Object Detection', processed_frame)  # Отображаем кадр в окне
+                # Изменяем размер кадра с сохранением пропорций для отображения
+                # Вычисляем целевую высоту для сохранения пропорций
+                aspect_ratio = frame_width / frame_height
+                target_height = min(window_height, int(window_width / aspect_ratio))
+                
+                # Изменяем размер для отображения
+                display_frame = resize_with_aspect_ratio(processed_frame, width=window_width, height=target_height)
+                
+                # Отображаем кадр в окне
+                cv2.imshow(window_name, display_frame)
             
             frame_count += 1
             
