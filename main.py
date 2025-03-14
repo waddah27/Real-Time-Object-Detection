@@ -180,7 +180,7 @@ def main():
     cv2.moveWindow(window_name, 0, 0)
     
     # Путь к модели
-    model_path = 'best_n2.pt'
+    model_path = 'best_s2.pt'
     model = YOLO(model_path)
     
     # Определяем цвета для классов
