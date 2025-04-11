@@ -28,7 +28,7 @@ cd Real-Time-Object-Detection
 
 ```bash
 python -m venv myenv
-myenv\Scripts\activate
+myenv\scripts\activate
 ```
 
 Установите необходимые зависимости:
