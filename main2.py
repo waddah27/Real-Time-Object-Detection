@@ -4,6 +4,7 @@ from ultralytics import YOLO
 import sys
 import os
 from datetime import datetime, timedelta
+import time
 
 # Путь к моделям
 model_for_cut_path = 'models/yolo11l.pt'  # Первая модель для детекции людей
@@ -80,19 +81,29 @@ if not cap.isOpened():
 
 print("Начало обработки видео-потока...")
 
-# Переменная для отслеживания времени последнего обнаружения
+# Переменные для отслеживания времени и кадров
 last_detection_time = datetime.min
+frame_counter = 0  # Счётчик кадров
 
 while True:
     ret, frame = cap.read()
     if not ret:
         break
 
+    frame_counter += 1
+
+    # Обрабатываем только каждый 10-й кадр
+    if frame_counter % 30 != 0:
+        continue
+
     # Преобразуем кадр в RGB
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     # Используем первую модель для обнаружения людей
+    start_time = time.time()
     results = model_for_cut(frame_rgb, classes=[0], verbose=False)
+    end_time = time.time()
+    print(f"Время работы первой модели: {end_time - start_time:.2f} секунд")
 
     for result in results:
         boxes = result.boxes
@@ -119,7 +130,10 @@ while True:
             cv2.imwrite(temp_crop_path, cv2.cvtColor(person_crop_resized, cv2.COLOR_RGB2BGR))
 
             # Используем вторую модель для предсказания нарушений
+            start_time = time.time()
             results_local = model(temp_crop_path, verbose=False, conf=0.518, iou=0.2)
+            end_time = time.time()
+            print(f"Время работы второй модели: {end_time - start_time:.2f} секунд")
 
             # Проверяем предсказания
             if len(results_local[0].boxes) > 0:
@@ -129,23 +143,18 @@ while True:
 
                     # Проверяем задержку между обнаружениями
                     current_time = datetime.now()
-                    
                     if current_time - last_detection_time >= timedelta(seconds=10):
                         log_violation(class_id, class_name)  # Логируем нарушение
                         last_detection_time = current_time
                         
                         # Добавляем рамку на основной кадр
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 3)  # Красная рамка
-                        #cv2.putText(frame, f"{class_name}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 
-                                    #0.5, (0, 0, 255), 2, cv2.LINE_AA)  # Текст над рамкой
+                        cv2.putText(frame, f"{class_name}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 
+                                    0.5, (0, 0, 255), 2, cv2.LINE_AA)  # Текст над рамкой
                         
                         # Визуализируем кадр с нарушением
                         cv2.imshow("Нарушение", frame)
                         cv2.waitKey(1000)  # Задержка для отображения кадра
-                        
-                        # Условие выхода по клавише 'q'
-                        if cv2.waitKey(1) & 0xFF == ord('q'):
-                            break
 
             # Удаляем временный файл
             if os.path.exists(temp_crop_path):
