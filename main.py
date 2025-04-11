@@ -3,307 +3,163 @@ import numpy as np
 from ultralytics import YOLO
 import sys
 import os
+from datetime import datetime, timedelta
 import time
-import threading
-try:
-    from screeninfo import get_monitors
-except ImportError:
-    print("Библиотека screeninfo не установлена. Используем стандартное разрешение.")
 
-# Функция для получения разрешения экрана
-def get_screen_resolution():
-    try:
-        # Попытка использовать screeninfo
-        monitors = get_monitors()
-        primary_monitor = monitors[0]
-        return primary_monitor.width, primary_monitor.height
-    except:
-        try:
-            # Альтернативный метод для Windows
-            import ctypes
-            user32 = ctypes.windll.user32
-            return user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
-        except:
-            # Стандартное разрешение, если не удалось определить
-            return 1920, 1080
+# Путь к моделям
+model_for_cut_path = 'models/yolo11l.pt'  # Первая модель для детекции людей
+model_path = 'models/NN1_v7_aug.pt'      # Вторая модель для предсказания нарушений
 
-# Функция для изменения размера изображения с сохранением пропорций
-def resize_with_aspect_ratio(image, width=None, height=None):
-    if image is None:
-        return None
-        
-    h, w = image.shape[:2]
-    
-    if width is None and height is None:
-        return image
-    
-    if width is None:
-        r = height / h
-        dim = (int(w * r), height)
+# Загружаем модели
+model_for_cut = YOLO(model_for_cut_path)
+model = YOLO(model_path)
+
+# Функция для изменения размера с сохранением пропорций
+def resize_with_padding_info(image, target_size):
+    target_width, target_height = target_size
+    height, width = image.shape[:2]
+    aspect_ratio = width / height
+    target_aspect_ratio = target_width / target_height
+
+    if aspect_ratio > target_aspect_ratio:
+        new_width = target_width
+        new_height = int(new_width / aspect_ratio)
     else:
-        r = width / w
-        dim = (width, int(h * r))
-    
-    return cv2.resize(image, dim)
+        new_height = target_height
+        new_width = int(new_height * aspect_ratio)
 
-# Функция для предикта и получения ббоксов
-def get_bbox(image, model, colors):
-    if image is None or image.size == 0:
-        return None
-    
-    try:
-        results = model(image, 
-                        save=False, 
-                        imgsz=640, 
-                        conf=0.4,
-                        iou=0.3,
-                        verbose=False)    
-        # Обрабатываем результаты
-        for result in results:
-            boxes = result.boxes
-            for box in boxes:
-                class_id = int(box.cls)  # Получаем ID класса
-                # Извлекаем координаты как массив
-                xyxy = box.xyxy.cpu().numpy()[0]  # Преобразуем в одномерный массив
-                x1, y1, x2, y2 = map(int, xyxy)  # Преобразуем координаты в целые числа
-                color = colors.get(class_id, (255, 255, 255))  # Цвет по классу, белый по умолчанию
-                cv2.rectangle(image, (x1, y1), (x2, y2), color, 3)  # Рисуем рамку
-                # Отображаем текст класса
-                class_name = model.names[class_id]  # Получаем название класса из модели
-                cv2.putText(image, class_name, (x1, y1 - 10), cv2.FONT_HERSHEY_COMPLEX, 
-                            0.5, color, 2, cv2.LINE_AA)  # Добавляем текст над рамкой
-        return image
-    except Exception as e:
-        print(f"Ошибка при обработке кадра: {e}")
-        return image
+    resized_image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+    padded_image = np.zeros((target_height, target_width, 3), dtype=np.uint8)
+    x_offset = (target_width - new_width) // 2
+    y_offset = (target_height - new_height) // 2
+    padded_image[y_offset:y_offset+new_height, x_offset:x_offset+new_width] = resized_image
 
-# Класс для работы с буферизированным видеопотоком
-class RTSPVideoStream:
-    def __init__(self, src):
-        self.src = src
-        self.stopped = False
-        self.frame = None
-        self.connection_attempts = 0
-        self.max_attempts = 5
-        self.reconnect()
-        
-        # Запускаем поток для чтения кадров
-        self.thread = threading.Thread(target=self.update, args=())
-        self.thread.daemon = True
-        self.thread.start()
-    
-    def reconnect(self):
-        if self.connection_attempts >= self.max_attempts:
-            print("Превышено количество попыток подключения")
-            self.stopped = True
-            return False
-            
-        # Устанавливаем параметры для FFMPEG
-        if isinstance(self.src, str) and self.src.startswith("rtsp://"):
-            os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|timeout;12000000"
-            self.stream = cv2.VideoCapture(self.src, cv2.CAP_FFMPEG)
-            
-            # Устанавливаем буфер
-            self.stream.set(cv2.CAP_PROP_BUFFERSIZE, 3)
-            
-            # Если разрешение слишком высокое, снижаем его
-            width = self.stream.get(cv2.CAP_PROP_FRAME_WIDTH)
-            if width > 1280:
-                self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-                self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-        else:
-            self.stream = cv2.VideoCapture(self.src)
-            
-        self.connection_attempts += 1
-        
-        if not self.stream.isOpened():
-            print(f"Не удалось подключиться (попытка {self.connection_attempts})")
-            time.sleep(2)  # Пауза перед повторной попыткой
-            return self.reconnect()
-            
-        print(f"Подключение успешно (попытка {self.connection_attempts})")
-        self.connection_attempts = 0
-        return True
-    
-    def update(self):
-        while not self.stopped:
-            if not self.stream.isOpened():
-                if not self.reconnect():
-                    break
-                continue
-                
-            # Пропускаем несколько кадров для очистки буфера
-            for _ in range(2):
-                self.stream.grab()
-                
-            # Читаем кадр
-            ret, frame = self.stream.read()
-            
-            if not ret:
-                print("Ошибка при чтении кадра, попытка переподключения...")
-                if not self.reconnect():
-                    break
-                continue
-                
-            self.frame = frame
-            
-            # Добавляем небольшую задержку, чтобы снизить нагрузку на CPU
-            time.sleep(0.01)
-    
-    def read(self):
-        return self.frame
-    
-    def get(self, prop):
-        return self.stream.get(prop)
-    
-    def stop(self):
-        self.stopped = True
-        if self.stream.isOpened():
-            self.stream.release()
-
-def main():
-    # Получаем разрешение экрана
-    screen_width, screen_height = get_screen_resolution()
-    
-    # Настраиваем размер окна (четверть экрана)
-    window_width = screen_width // 2
-    window_height = screen_height // 2
-    
-    # Имя окна
-    window_name = 'Real-Time Object Detection'
-    
-    # Создаем окно с возможностью изменения размера
-    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-    cv2.resizeWindow(window_name, window_width, window_height)
-    
-    # Перемещаем окно в верхний левый угол
-    cv2.moveWindow(window_name, 0, 0)
-    
-    # Путь к модели
-    model_path = 'best_s2.pt'
-    model = YOLO(model_path)
-    
-    # Определяем цвета для классов
-    colors = {
-        0: (255, 0, 0),    # Синий (спецодежда)
-        1: (0, 255, 0),    # Зеленый (головной убор)
-        2: (0, 165, 255),  # Оранжевый (нет спецодежды)
-        3: (0, 0, 255)     # Красный (нет головного убора)
+    padding_info = {
+        'x_offset': x_offset,
+        'y_offset': y_offset,
+        'new_width': new_width,
+        'new_height': new_height,
+        'original_width': width,
+        'original_height': height
     }
-    
-    # Получаем аргумент командной строки
-    if len(sys.argv) < 2:
-        print("Не указан источник видео")
-        sys.exit(1)
-        
-    video_source = sys.argv[1]
-    record_video = False
-    
-    # Определяем источник видео
-    if video_source.isdigit():
-        video_source = int(video_source)
-    elif video_source.startswith("rtsp://"):
-        pass  # RTSP-адрес, оставляем как есть
-    elif video_source.count('.') == 3:
-        pass  # IP-адрес, оставляем как есть
-    elif os.path.isfile(video_source):
-        record_video = True    
-    else:
-        print("Неверный формат ввода источника видео")
-        sys.exit(1)
-    
-    # Используем буферизированный видеопоток для RTSP
-    if isinstance(video_source, str) and video_source.startswith("rtsp://"):
-        vs = RTSPVideoStream(video_source)
-        time.sleep(2.0)  # Позволяем камере инициализироваться
-        
-        # Получаем параметры видео
-        frame_width = int(vs.get(cv2.CAP_PROP_FRAME_WIDTH))
-        frame_height = int(vs.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = vs.get(cv2.CAP_PROP_FPS)
-    else:
-        # Для обычных видеофайлов используем стандартный подход
-        cap = cv2.VideoCapture(video_source)
-        
-        # Получаем параметры видео
-        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = cap.get(cv2.CAP_PROP_FPS)
-    
-    print(f"Разрешение картинки: {frame_width}x{frame_height}, FPS: {fps}")
-    print("Для выхода нажмите 'q'")
-    
-    # Определяем кодек и создаем объект VideoWriter, если нужно вести запись
-    if record_video:
-        out = cv2.VideoWriter('result_video.mp4', cv2.VideoWriter_fourcc(*'mp4v'), fps, (frame_width, frame_height))
-        print("Запись видео...")
-    
-    frame_count = 0
-    last_time = time.time()
-    fps_counter = 0
-    
-    try:
-        while True:
-            # Читаем кадр из соответствующего источника
-            if isinstance(video_source, str) and video_source.startswith("rtsp://"):
-                frame = vs.read()
-                if frame is None:
-                    continue
-            else:
-                ret, frame = cap.read()
-                if not ret:
-                    break
-            
-            # Увеличиваем счетчик кадров и вычисляем FPS
-            fps_counter += 1
-            if time.time() - last_time >= 5.0:
-                fps_real = fps_counter / (time.time() - last_time)
-                print(f"Текущий FPS: {fps_real:.2f}")
-                fps_counter = 0
-                last_time = time.time()
-            
-            # Предикт - получаем кадр с б-боксами
-            processed_frame = get_bbox(frame, model, colors)
-            
-            if processed_frame is None:
-                continue
-            
-            if record_video:  # Записываем кадр в выходное видео, если нужно вести запись
-                out.write(processed_frame)
-            else:
-                # Изменяем размер кадра с сохранением пропорций для отображения
-                # Вычисляем целевую высоту для сохранения пропорций
-                aspect_ratio = frame_width / frame_height
-                target_height = min(window_height, int(window_width / aspect_ratio))
-                
-                # Изменяем размер для отображения
-                display_frame = resize_with_aspect_ratio(processed_frame, width=window_width, height=target_height)
-                
-                # Отображаем кадр в окне
-                cv2.imshow(window_name, display_frame)
-            
-            frame_count += 1
-            
-            # Выход при нажатии клавиши 'q'
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-    
-    except KeyboardInterrupt:
-        print("Прервано пользователем")
-    except Exception as e:
-        print(f"Произошла ошибка: {e}")
-    finally:
-        # Освобождаем ресурсы
-        if isinstance(video_source, str) and video_source.startswith("rtsp://"):
-            vs.stop()
-        else:
-            cap.release()
-            
-        if record_video:
-            out.release()
-            print("Файл записан: 'result_video.mp4'")
-            
-        cv2.destroyAllWindows()
 
-if __name__ == "__main__":
-    main()
+    return padded_image, padding_info
+
+# Функция для записи нарушений в текстовый файл и вывода в терминал
+def log_violation(class_id, class_name):
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_entry = f"{current_time} / Класс нарушения: {class_id} ({class_name})"
+    
+    # Записываем в файл
+    with open("violations_log.txt", "a", encoding="utf-8") as log_file:
+        log_file.write(log_entry + "\n")
+    
+    # Дублируем в терминал
+    print(log_entry)
+
+# Получаем аргумент командной строки
+if len(sys.argv) < 2:
+    print("Не указан источник видео")
+    sys.exit(1)
+
+video_source = sys.argv[1]
+
+# Определяем источник видео
+if video_source.isdigit():
+    video_source = int(video_source)
+elif not (video_source.startswith("rtsp://") or video_source.startswith("http://") or os.path.isfile(video_source)):
+    print("Неверный формат ввода источника видео")
+    sys.exit(1)
+
+# Открываем видеопоток
+cap = cv2.VideoCapture(video_source)
+
+# Проверяем, успешно ли открыт видеопоток
+if not cap.isOpened():
+    print(f"Не удалось открыть источник видео: {video_source}")
+    sys.exit(1)
+
+print("Начало обработки видео-потока...")
+
+# Переменные для отслеживания времени и кадров
+last_detection_time = datetime.min
+frame_counter = 0  # Счётчик кадров
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    frame_counter += 1
+
+    # Обрабатываем только каждый 10-й кадр
+    if frame_counter % 30 != 0:
+        continue
+
+    # Преобразуем кадр в RGB
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    # Используем первую модель для обнаружения людей
+    start_time = time.time()
+    results = model_for_cut(frame_rgb, classes=[0], verbose=False)
+    end_time = time.time()
+    print(f"Время работы первой модели: {end_time - start_time:.2f} секунд")
+
+    for result in results:
+        boxes = result.boxes
+        for box in boxes:
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+            min_length = min(x2 - x1, y2 - y1)
+
+            # Пропускаем слишком маленькие объекты
+            if min_length < 100:
+                continue
+
+            # Вырезаем область с человеком
+            person_crop = frame_rgb[y1:y2, x1:x2]
+
+            # Проверяем, что вырезанное изображение валидно
+            if person_crop.size == 0:
+                continue
+
+            # Изменяем размер вырезанного изображения до 640x640
+            person_crop_resized, _ = resize_with_padding_info(person_crop, (640, 640))
+
+            # Сохраняем временный файл
+            temp_crop_path = "temp_crop.jpg"
+            cv2.imwrite(temp_crop_path, cv2.cvtColor(person_crop_resized, cv2.COLOR_RGB2BGR))
+
+            # Используем вторую модель для предсказания нарушений
+            start_time = time.time()
+            results_local = model(temp_crop_path, verbose=False, conf=0.518, iou=0.2)
+            end_time = time.time()
+            print(f"Время работы второй модели: {end_time - start_time:.2f} секунд")
+
+            # Проверяем предсказания
+            if len(results_local[0].boxes) > 0:
+                for det_box in results_local[0].boxes:
+                    class_id = int(det_box.cls[0])
+                    class_name = results_local[0].names[class_id]  # Получаем имя класса
+
+                    # Проверяем задержку между обнаружениями
+                    current_time = datetime.now()
+                    if current_time - last_detection_time >= timedelta(seconds=10):
+                        log_violation(class_id, class_name)  # Логируем нарушение
+                        last_detection_time = current_time
+                        
+                        # Добавляем рамку на основной кадр
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 3)  # Красная рамка
+                        cv2.putText(frame, f"{class_name}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 
+                                    0.5, (0, 0, 255), 2, cv2.LINE_AA)  # Текст над рамкой
+                        
+                        # Визуализируем кадр с нарушением
+                        cv2.imshow("Нарушение", frame)
+                        cv2.waitKey(1000)  # Задержка для отображения кадра
+
+            # Удаляем временный файл
+            if os.path.exists(temp_crop_path):
+                os.remove(temp_crop_path)
+
+cap.release()
+cv2.destroyAllWindows()
+print("Обработка завершена. Нарушения записаны в файл 'violations_log.txt'.")
