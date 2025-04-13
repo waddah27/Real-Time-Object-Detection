@@ -2,3 +2,4 @@ opencv-python
 numpy
 ultralytics
 screeninfo
+python-telegram-bot

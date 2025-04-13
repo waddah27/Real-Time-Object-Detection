@@ -1,3 +1,4 @@
+import asyncio
 import cv2
 import numpy as np
 from ultralytics import YOLO
@@ -5,6 +6,9 @@ import sys
 import os
 from datetime import datetime, timedelta
 import time
+from telegram.ext import ApplicationBuilder, CommandHandler
+from TelegramBot.message_utils import TextMessage, ImgMessage, FileMessage
+from TelegramBot.authorities import TOKEN
 
 # Путь к моделям
 model_for_cut_path = 'models/yolo11l.pt'  # Первая модель для детекции людей
@@ -45,17 +49,29 @@ def resize_with_padding_info(image, target_size):
 
     return padded_image, padding_info
 
+
+# Keep track of already logged violations (prevents duplicates)
+logged_violations = set()
+
 # Функция для записи нарушений в текстовый файл и вывода в терминал
 def log_violation(class_id, class_name):
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"{current_time} / Класс нарушения: {class_id} ({class_name})"
     
-    # Записываем в файл
-    with open("violations_log.txt", "a", encoding="utf-8") as log_file:
-        log_file.write(log_entry + "\n")
+    # Create a unique key for this violation (time + class_id avoids duplicates)
+    violation_key = f"{class_id}-{current_time[:10]}"  # Date+ID as duplicate check
     
-    # Дублируем в терминал
-    print(log_entry)
+    if violation_key not in logged_violations:
+        # Записываем в файл
+        with open("violations_log.txt", "a", encoding="utf-8") as log_file:
+            log_file.write(log_entry + "\n")
+        
+        # Send to tg bot only the new detected violations ...
+        loop.create_task(FileMessage("violations_log.txt").send_file(app))
+        
+        # Дублируем в терминал
+        print(log_entry)
+
 
 # Получаем аргумент командной строки
 if len(sys.argv) < 2:
@@ -63,6 +79,9 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 video_source = sys.argv[1]
+
+# Build telegram Bot API application for sending the results to 
+app = ApplicationBuilder().token(TOKEN).build()
 
 # Определяем источник видео
 if video_source.isdigit():
@@ -84,6 +103,11 @@ print("Начало обработки видео-потока...")
 # Переменные для отслеживания времени и кадров
 last_detection_time = datetime.min
 frame_counter = 0  # Счётчик кадров
+
+# Start the bot
+app.add_handler(CommandHandler("start", TextMessage("✅ Bot is alive and responding!").start))
+# Use the event loop to create the initial message task
+loop = asyncio.get_event_loop()
 
 while True:
     ret, frame = cap.read()
