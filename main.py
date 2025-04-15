@@ -5,11 +5,12 @@ import sys
 import os
 from datetime import datetime, timedelta
 import time
-
+from send_reports import send_violations, prepare_signal
+from upload_image import upload
 # Путь к моделям
 model_for_cut_path = 'models/yolo11l.pt'  # Первая модель для детекции людей
 model_path = 'models/NN1_v7_aug.pt'      # Вторая модель для предсказания нарушений
-
+violations = [] # a list to store json file for each detected violation in each frame
 # Загружаем модели
 model_for_cut = YOLO(model_for_cut_path)
 model = YOLO(model_path)
@@ -86,6 +87,7 @@ last_detection_time = datetime.min
 frame_counter = 0  # Счётчик кадров
 
 while True:
+    violations = [] # reset violations for each new frame
     ret, frame = cap.read()
     if not ret:
         break
@@ -141,10 +143,13 @@ while True:
                     class_id = int(det_box.cls[0])
                     class_name = results_local[0].names[class_id]  # Получаем имя класса
 
+
                     # Проверяем задержку между обнаружениями
                     current_time = datetime.now()
                     if current_time - last_detection_time >= timedelta(seconds=10):
                         log_violation(class_id, class_name)  # Логируем нарушение
+                        violations.append(prepare_signal(class_name, description="")) # TODO see what are available descriptions vs class_names
+                        
                         last_detection_time = current_time
                         
                         # Добавляем рамку на основной кадр
@@ -159,6 +164,8 @@ while True:
             # Удаляем временный файл
             if os.path.exists(temp_crop_path):
                 os.remove(temp_crop_path)
+    
+    send_violations(violations)
 
 cap.release()
 cv2.destroyAllWindows()
