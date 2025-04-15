@@ -2,3 +2,6 @@ opencv-python
 numpy
 ultralytics
 screeninfo
+pika 
+python-dotenv==1.0.1
+minio==7.2.3
