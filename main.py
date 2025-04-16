@@ -156,7 +156,7 @@ while True:
                     if current_time - last_detection_time >= timedelta(seconds=10):
                         log_violation(class_id, class_name)  # Логируем нарушение
                         # record all detected violations to a list of dictionaries (see prepare_signal)
-                        violations.append(prepare_signal(class_name, description="")) # TODO see what are available descriptions vs class_names
+                        violations.append(prepare_signal(violation_type=class_name)) # TODO see what are available descriptions vs class_names
 
                         last_detection_time = current_time
 
