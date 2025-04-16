@@ -6,7 +6,7 @@ import os
 from datetime import datetime, timedelta
 import time
 from send_reports import send_violations, prepare_signal
-from upload_image import upload
+from upload_image import upload, BUCKET_NAME, IMAGE_PATH, OBJECT_NAME
 # Путь к моделям
 model_for_cut_path = 'models/yolo11l.pt'  # Первая модель для детекции людей
 model_path = 'models/NN1_v7_aug.pt'      # Вторая модель для предсказания нарушений
@@ -50,11 +50,11 @@ def resize_with_padding_info(image, target_size):
 def log_violation(class_id, class_name):
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"{current_time} / Класс нарушения: {class_id} ({class_name})"
-    
+
     # Записываем в файл
     with open("violations_log.txt", "a", encoding="utf-8") as log_file:
         log_file.write(log_entry + "\n")
-    
+
     # Дублируем в терминал
     print(log_entry)
 
@@ -148,23 +148,30 @@ while True:
                     current_time = datetime.now()
                     if current_time - last_detection_time >= timedelta(seconds=10):
                         log_violation(class_id, class_name)  # Логируем нарушение
+                        # record all detected violations to a list of dictionaries (see prepare_signal)
                         violations.append(prepare_signal(class_name, description="")) # TODO see what are available descriptions vs class_names
-                        
+
                         last_detection_time = current_time
-                        
+
                         # Добавляем рамку на основной кадр
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 3)  # Красная рамка
-                        cv2.putText(frame, f"{class_name}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 
+                        cv2.putText(frame, f"{class_name}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX,
                                     0.5, (0, 0, 255), 2, cv2.LINE_AA)  # Текст над рамкой
-                        
+
                         # Визуализируем кадр с нарушением
                         cv2.imshow("Нарушение", frame)
                         cv2.waitKey(1000)  # Задержка для отображения кадра
 
+
             # Удаляем временный файл
             if os.path.exists(temp_crop_path):
                 os.remove(temp_crop_path)
-    
+    # Save the frame with detected violations
+    cv2.imwrite(IMAGE_PATH, cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+    # send it to S3
+    upload(BUCKET_NAME, IMAGE_PATH, OBJECT_NAME)
+
+    # send violations json file
     send_violations(violations)
 
 cap.release()
