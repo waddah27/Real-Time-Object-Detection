@@ -13,15 +13,23 @@ RABBITMQ_USER = os.getenv('RABBITMQ_DEFAULT_USER', 'guest')
 RABBITMQ_PASS = os.getenv('RABBITMQ_DEFAULT_PASS', 'guest')
 RABBITMQ_QUEUE = os.getenv('RABBITMQ_SIGNALS_QUEUE', 'violations_queue')
 
-def prepare_signal(violation_type:str =  "clothing", description:str = "Отсутствие головного убора"):
+def prepare_signal(
+        company:str = "ООО 'Пищепром'",
+        event_type:str = "violation",   
+        employee_name:str =  "Иванов Иван Иванович",
+        employee_id:str = "55555555-5555-5555-5555-555555555555",
+        photo:str = "https://example.com/photo.jpg",
+        violation_type:str =  "clothing",            
+        description:str = "Отсутствие головного убора"
+        ):
         
     signal = {
-    "company": "ООО 'Пищепром'",
-    "event_type": "violation",
+    "company": company,
+    "event_type": event_type,
     "happened_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-    "employee_name": "Иванов Иван Иванович",
-    "employee_id": "55555555-5555-5555-5555-555555555555",
-    "photo": "https://example.com/photo.jpg",
+    "employee_name": employee_name,
+    "employee_id": employee_id,
+    "photo": photo,
     "details": {
         "violation_type": f"{violation_type}",
         "description": f"{description}",

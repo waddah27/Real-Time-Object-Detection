@@ -15,6 +15,12 @@ violations = [] # a list to store json file for each detected violation in each 
 model_for_cut = YOLO(model_for_cut_path)
 model = YOLO(model_path)
 
+def send_frame(frame, bucket_name:str = BUCKET_NAME, image_path:str = IMAGE_PATH, object_name:str = OBJECT_NAME):
+    # Save the frame with detected violations
+    cv2.imwrite(image_path, cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+    # send it to S3
+    upload(bucket_name, image_path, object_name)
+
 # Функция для изменения размера с сохранением пропорций
 def resize_with_padding_info(image, target_size):
     target_width, target_height = target_size
@@ -85,7 +91,7 @@ print("Начало обработки видео-потока...")
 # Переменные для отслеживания времени и кадров
 last_detection_time = datetime.min
 frame_counter = 0  # Счётчик кадров
-
+frame_contains_violations = False # to decide which frame to send (if it contains detected violation)
 while True:
     violations = [] # reset violations for each new frame
     ret, frame = cap.read()
@@ -139,6 +145,7 @@ while True:
 
             # Проверяем предсказания
             if len(results_local[0].boxes) > 0:
+                frame_contains_violations = True
                 for det_box in results_local[0].boxes:
                     class_id = int(det_box.cls[0])
                     class_name = results_local[0].names[class_id]  # Получаем имя класса
@@ -166,13 +173,12 @@ while True:
             # Удаляем временный файл
             if os.path.exists(temp_crop_path):
                 os.remove(temp_crop_path)
-    # Save the frame with detected violations
-    cv2.imwrite(IMAGE_PATH, cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
-    # send it to S3
-    upload(BUCKET_NAME, IMAGE_PATH, OBJECT_NAME)
+    
+    if frame_contains_violations:
+        send_frame(frame) # here u can specify the image path, bucket name and object name 
 
-    # send violations json file
-    send_violations(violations)
+        # send violations json file
+        send_violations(violations)
 
 cap.release()
 cv2.destroyAllWindows()
