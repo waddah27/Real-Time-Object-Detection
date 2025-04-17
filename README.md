@@ -116,36 +116,37 @@ MINIO_CONSOLE_PORT=...
 Обнаруженные нарушения отправляются на сервер в `2` форматах:
 
 #### 1. JSON файл:
-Который содержит список словарей всех обнаруженных нарушений в кадре, где каждое нарушение представлено в виде словаря, например:
+словарь для каждого обнаруженного нарушения в кадре например:
 
 ```json
-[
   {
     "name": "Нарушение в головном уборе",
     "slug": "headgear",
     "description": "Отсутствие или неправильное использование головного убора"
-  },
+  }
+```
+
+```json
   {
     "name": "Нарушение в одежде",
     "slug": "clothing",
     "description": "Несоответствие требованиям к одежде"
   }
-]
 ```
 
-Функция, которая используется для отправки JSON формата, называется `send_violations()`. Перед этим нужный формат указывается с помощью функции `prepare_signal()` следующим образом:
+Функция, которая используется для отправки JSON формата, называется `send_signal()`. Перед этим нужный формат указывается с помощью функции `prepare_signal()` следующим образом:
 
 ```python
 def prepare_signal(
         company: str = "ООО 'Пищепром'",
-        event_type: str = "violation",   
+        event_type: str = "violation",
         employee_name: str = "Иванов Иван Иванович",
         employee_id: str = "55555555-5555-5555-5555-555555555555",
         photo: str = "https://example.com/photo.jpg",
-        violation_type: str = "clothing",            
+        violation_type: str = "clothing",
         description: str = "Отсутствие головного убора"
         ):
-        
+
     signal = {
         "company": company,
         "event_type": event_type,
@@ -175,7 +176,7 @@ def send_frame(frame, bucket_name: str = BUCKET_NAME, image_path: str = IMAGE_PA
 ```
 
 Эта функция будет вызываться автоматически при обнаружении нарушения в кадре.
-``` 
+```
 
 ## Примечания
 
