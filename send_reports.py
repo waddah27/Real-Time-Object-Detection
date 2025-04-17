@@ -15,14 +15,14 @@ RABBITMQ_QUEUE = os.getenv('RABBITMQ_SIGNALS_QUEUE', 'violations_queue')
 
 def prepare_signal(
         company:str = "ООО 'Пищепром'",
-        event_type:str = "violation",   
+        event_type:str = "violation",
         employee_name:str =  "Иванов Иван Иванович",
         employee_id:str = "55555555-5555-5555-5555-555555555555",
         photo:str = "https://example.com/photo.jpg",
-        violation_type:str =  "clothing",            
+        violation_type:str =  "clothing",
         description:str = "Отсутствие головного убора"
         ):
-        
+
     signal = {
     "company": company,
     "event_type": event_type,
@@ -37,9 +37,9 @@ def prepare_signal(
     }
     return signal
 
-def send_violations(violations: list[dict]):
+def send_signal(violations: dict):
     """Sends a list of violations detected in a single video frame."""
-    
+
 
     # Connect to RabbitMQ
     credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASS)
@@ -70,22 +70,12 @@ def send_violations(violations: list[dict]):
 
 if __name__ == "__main__":
     # Example: Simulate violations in a frame
-    frame_id = 100  # Example frame number
-    violations = [
-        {
+    violations ={
             "type": "no_helmet",
             "confidence": 0.92,
             "bbox": [100, 150, 200, 250],  # x1, y1, x2, y2
             "employee_id": "emp_123",
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
-        },
-        {
-            "type": "no_safety_vest",
-            "confidence": 0.87,
-            "bbox": [300, 400, 350, 450],
-            "employee_id": "emp_456",
-            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
         }
-    ]
 
-    send_violations(frame_id, violations)
+    send_signal(violations)

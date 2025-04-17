@@ -5,7 +5,7 @@ import sys
 import os
 from datetime import datetime, timedelta
 import time
-from send_reports import send_violations, prepare_signal
+from send_reports import send_signal, prepare_signal
 from upload_image import upload, BUCKET_NAME, IMAGE_PATH, OBJECT_NAME
 # Путь к моделям
 model_for_cut_path = 'models/yolo11l.pt'  # Первая модель для детекции людей
@@ -91,7 +91,6 @@ print("Начало обработки видео-потока...")
 # Переменные для отслеживания времени и кадров
 last_detection_time = datetime.min
 frame_counter = 0  # Счётчик кадров
-frame_contains_violations = False # to decide which frame to send (if it contains detected violation)
 while True:
     violations = [] # reset violations for each new frame
     ret, frame = cap.read()
@@ -145,7 +144,6 @@ while True:
 
             # Проверяем предсказания
             if len(results_local[0].boxes) > 0:
-                frame_contains_violations = True
                 for det_box in results_local[0].boxes:
                     class_id = int(det_box.cls[0])
                     class_name = results_local[0].names[class_id]  # Получаем имя класса
@@ -156,7 +154,8 @@ while True:
                     if current_time - last_detection_time >= timedelta(seconds=10):
                         log_violation(class_id, class_name)  # Логируем нарушение
                         # record all detected violations to a list of dictionaries (see prepare_signal)
-                        violations.append(prepare_signal(violation_type=class_name)) # TODO see what are available descriptions vs class_names
+                        # send each violation as a json file to server
+                        send_signal(prepare_signal(violation_type=class_name))
 
                         last_detection_time = current_time
 
@@ -167,18 +166,14 @@ while True:
 
                         # Визуализируем кадр с нарушением
                         cv2.imshow("Нарушение", frame)
+                        send_frame(frame) # here u can specify the image path, bucket name and object name
                         cv2.waitKey(1000)  # Задержка для отображения кадра
 
 
             # Удаляем временный файл
             if os.path.exists(temp_crop_path):
                 os.remove(temp_crop_path)
-    
-    if frame_contains_violations:
-        send_frame(frame) # here u can specify the image path, bucket name and object name 
 
-        # send violations json file
-        send_violations(violations)
 
 cap.release()
 cv2.destroyAllWindows()
