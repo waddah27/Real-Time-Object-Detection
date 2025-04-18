@@ -3,16 +3,14 @@ import json
 import datetime
 import uuid
 import os
-from dotenv import load_dotenv
-
-# Загрузка переменных окружения
-load_dotenv()
 
 # Параметры подключения к RabbitMQ
-RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'message-broker')
-RABBITMQ_PORT = int(os.getenv('RABBITMQ_PORT_EXPOSE_1', 5672))
-RABBITMQ_USER = os.getenv('RABBITMQ_DEFAULT_USER', 'guest')
-RABBITMQ_PASS = os.getenv('RABBITMQ_DEFAULT_PASS', 'guest')
+RABBITMQ_HOST="kolpino-control-api.taskcomplete.ru"
+RABBITMQ_PORT=5672
+RABBITMQ_USER="rmqser"
+RABBITMQ_PASS="pCQYpvzywiTKs19xFk"
+RABBITMQ_QUEUE="signals_queue"
+
 RABBITMQ_QUEUE = os.getenv('RABBITMQ_SIGNALS_QUEUE', 'signals_queue')
 
 
@@ -24,9 +22,9 @@ def send_signal():
         "happened_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "employee_name": "Иванов Иван Иванович",
         "employee_id": "55555555-5555-5555-5555-555555555555",
-        "photo": "https://example.com/photo.jpg",
+        "photo": "http://localhost:9000/images/test.jpg",
         "details": {
-            "violation_type": "clothing",
+            "violation_type": "headgear",
             "description": "Отсутствие головного убора",
         }
     }
@@ -57,6 +55,3 @@ def send_signal():
 
     print(f"Отправлен сигнал: {json.dumps(signal, indent=2, ensure_ascii=False)}")
     connection.close()
-
-if __name__ == "__main__":
-    send_signal()
