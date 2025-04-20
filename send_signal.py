@@ -55,3 +55,7 @@ def send_signal():
 
     print(f"Отправлен сигнал: {json.dumps(signal, indent=2, ensure_ascii=False)}")
     connection.close()
+
+
+if __name__=="__main__":
+    send_signal()
