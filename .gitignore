@@ -10,3 +10,5 @@ Thumbs.db
 __pycache__/
 
 .env
+
+send_signal.py
