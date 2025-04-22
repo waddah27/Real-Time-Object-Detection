@@ -166,7 +166,7 @@ while True:
 
                         # Визуализируем кадр с нарушением
                         cv2.imshow("Нарушение", frame)
-                        # send_frame(frame) # here u can specify the image path, bucket name and object name
+                        send_frame(frame) # here u can specify the image path, bucket name and object name
                         cv2.waitKey(1000)  # Задержка для отображения кадра
 
 

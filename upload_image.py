@@ -22,10 +22,10 @@ client = Minio(
 
 # Параметры загрузки
 BUCKET_NAME = 'images'
-IMAGE_PATH = 'test.jpg'
-OBJECT_NAME = 'test.jpg'
+IMAGE_PATH = 'test.png'
+OBJECT_NAME = 'test.png'
 
-def upload(bucket_name:str = BUCKET_NAME, image_path:str = IMAGE_PATH, object_name = OBJECT_NAME):
+def upload(bucket_name=BUCKET_NAME, image_path=IMAGE_PATH, object_name=OBJECT_NAME):
     # Создаем бакет, если его нет
     found = client.bucket_exists(bucket_name)
     if not found:
@@ -41,17 +41,8 @@ def upload(bucket_name:str = BUCKET_NAME, image_path:str = IMAGE_PATH, object_na
     print(f"Successfully uploaded {image_path} to bucket {bucket_name}")
 
     # Получаем URL для доступа к файлу
-    url = client.presigned_get_object(
-        bucket_name,
-        object_name,
-        expires=timedelta(days=90)
-    )
+    url = f"http://storage:9000/{bucket_name}/{object_name}"
     print(f"\nURL to access the image: {url}")
-    print("\nWeb interface:")
-    print(f"http://localhost:9001 - MinIO Console")
-    print("Credentials:")
-    print(f"Access Key: {MINIO_ACCESS_KEY}")
-    print(f"Secret Key: {MINIO_SECRET_KEY}")
 
 if __name__ == "__main__":
     upload() 

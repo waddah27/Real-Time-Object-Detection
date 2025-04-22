@@ -8,16 +8,11 @@ from dotenv import load_dotenv
 # load_dotenv()
 
 # # RabbitMQ settings
-# RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'message-broker')
-# RABBITMQ_PORT = int(os.getenv('RABBITMQ_PORT_EXPOSE_1', 5672))
-# RABBITMQ_USER = os.getenv('RABBITMQ_DEFAULT_USER', 'guest')
-# RABBITMQ_PASS = os.getenv('RABBITMQ_DEFAULT_PASS', 'guest')
-# RABBITMQ_QUEUE = os.getenv('RABBITMQ_SIGNALS_QUEUE', 'violations_queue')
-RABBITMQ_HOST="kolpino-control-api.taskcomplete.ru"
-RABBITMQ_PORT=5672
-RABBITMQ_USER="rmqser"
-RABBITMQ_PASS="pCQYpvzywiTKs19xFk"
-RABBITMQ_QUEUE="signals_queue"
+RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'message-broker')
+RABBITMQ_PORT = int(os.getenv('RABBITMQ_PORT_EXPOSE_1', 5672))
+RABBITMQ_USER = os.getenv('RABBITMQ_DEFAULT_USER', 'guest')
+RABBITMQ_PASS = os.getenv('RABBITMQ_DEFAULT_PASS', 'guest')
+
 
 RABBITMQ_QUEUE = os.getenv('RABBITMQ_SIGNALS_QUEUE', 'signals_queue')
 def prepare_signal(
