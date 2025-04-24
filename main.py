@@ -155,7 +155,7 @@ while True:
                         log_violation(class_id, class_name)  # Логируем нарушение
                         # record all detected violations to a list of dictionaries (see prepare_signal)
                         # send each violation as a json file to server
-                        send_signal(prepare_signal(violation_type=class_name))
+                        send_signal(prepare_signal(violation_type=class_name, bucket_name=BUCKET_NAME, object_name=OBJECT_NAME))
 
                         last_detection_time = current_time
 

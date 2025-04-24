@@ -20,7 +20,9 @@ def prepare_signal(
         event_type:str = "violation",
         employee_name:str =  "Иванов Иван Иванович",
         employee_id:str = "55555555-5555-5555-5555-555555555555",
-        photo:str = "https://example.com/photo.jpg",
+        # photo:str = "https://example.com/photo.jpg",
+        bucket_name:str = "images",
+        object_name:str = "test.png",
         violation_type:str =  "clothing",
         description:str = "Отсутствие головного убора"
         ):
@@ -31,7 +33,7 @@ def prepare_signal(
     "happened_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     "employee_name": employee_name,
     "employee_id": employee_id,
-    "photo": photo,
+    "photo": f"http://storage:9000/{bucket_name}/{object_name}",
     "details": {
         "violation_type": f"{violation_type}",
         "description": f"{description}",
