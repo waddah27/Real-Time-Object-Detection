@@ -5,8 +5,27 @@ import datetime
 import os
 from dotenv import load_dotenv
 # Load environment variables
-# load_dotenv()
+load_dotenv()
 
+VIOLATIONS_NAMES = {
+ 0: {
+    "name": "Нарушение в одежде",
+    "slug": "clothing",
+    "description": "Несоответствие требованиям к одежде"
+  },
+
+ 1: {
+    "name": "Нарушение в головном уборе",
+    "slug": "headgear",
+    "description": "Отсутствие или неправильное использование головного убора"
+  },
+
+  2:  {
+    "name": "Нарушение в украшениях",
+    "slug": "decoration",
+    "description": "Наличие украшений"
+  }
+}
 # # RabbitMQ settings
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'message-broker')
 RABBITMQ_PORT = int(os.getenv('RABBITMQ_PORT_EXPOSE_1', 5672))

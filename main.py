@@ -5,7 +5,7 @@ import sys
 import os
 from datetime import datetime, timedelta
 import time
-from send_reports import send_signal, prepare_signal
+from send_reports import send_signal, prepare_signal, VIOLATIONS_NAMES
 from upload_image import upload, BUCKET_NAME, IMAGE_PATH, OBJECT_NAME
 # Путь к моделям
 model_for_cut_path = 'models/yolo11l.pt'  # Первая модель для детекции людей
@@ -155,7 +155,7 @@ while True:
                         log_violation(class_id, class_name)  # Логируем нарушение
                         # record all detected violations to a list of dictionaries (see prepare_signal)
                         # send each violation as a json file to server
-                        send_signal(prepare_signal(violation_type=class_name, bucket_name=BUCKET_NAME, object_name=OBJECT_NAME))
+                        send_signal(prepare_signal(violation_type=VIOLATIONS_NAMES[class_id]["name"],description=VIOLATIONS_NAMES[class_id]["description"], bucket_name=BUCKET_NAME, object_name=OBJECT_NAME))
 
                         last_detection_time = current_time
 
