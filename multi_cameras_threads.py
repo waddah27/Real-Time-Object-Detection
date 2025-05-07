@@ -73,16 +73,16 @@ def log_violation(class_id, class_name):
 # Configuration for 4 cameras
 CAMERAS = [
     {
-        'username': 'user1',
-        'password': 'pass1',
+        'username': 'colpino',
+        'password': 'colpino374',
         'ip': '5.17.92.56',
         'port': 554,
         'channel': 1,
         'subtype': 0
     },
     {
-        'username': 'user2',
-        'password': 'pass2',
+        'username': 'colpino',
+        'password': 'colpino374',
         'ip': '5.17.92.56',
         'port': 554,
         'channel': 2,
@@ -90,16 +90,16 @@ CAMERAS = [
     },
     # Add configurations for cameras 3 and 4
     {
-        'username': 'user3',
-        'password': 'pass3',
+        'username': 'colpino',
+        'password': 'colpino374',
         'ip': '5.17.92.56',
         'port': 554,
         'channel': 3,
         'subtype': 0
     },
     {
-        'username': 'user4',
-        'password': 'pass4',
+        'username': 'colpino',
+        'password': 'colpino374',
         'ip': '5.17.92.56',
         'port': 554,
         'channel': 4,
