@@ -12,3 +12,6 @@ __pycache__/
 .env
 
 images/
+
+# very large model ... it will be generated automaitcally in the first run 
+models/yolo11x-pose.pt
