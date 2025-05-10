@@ -13,15 +13,16 @@ import  jewelry_detector
 # Путь к моделям
 model_for_cut_path = 'models/yolo11l.pt'  # Первая модель для детекции людей
 model_path = 'models/NN1_v7_aug.pt'      # Вторая модель для предсказания нарушений
+classifier_model_path = 'models/region_object_classifier_result3_94.pth' # третая модель для предсказания нарушений в украшениях
+
 violations = [] # a list to store json file for each detected violation in each frame
 
 # Загружаем модели
 model_for_cut = YOLO(model_for_cut_path)
 model = YOLO(model_path)
 
-def run_jewelry_detector(frame):
+def run_jewelry_detector(frame, camera_id = None):
     # Инициализация моделей при первом запуске
-    classifier_model_path = 'models/region_object_classifier_result3_94.pth'
     jewelry_detector.init_models(classifier_model_path)
 
     # Пример списка изображений с людьми
@@ -31,12 +32,17 @@ def run_jewelry_detector(frame):
 
     # Обнаружение украшений
     results = jewelry_detector.detect_jewelry(images)
-
-    print("Результаты обнаружения украшений:")
+    if camera_id is not None:
+        print(f"Камера - {camera_id}:Результаты обнаружения украшений:")
+    else:
+        print(f"Результаты обнаружения украшений:")
+    
     print(results)
 
     # Дальнейшая обработка результатов
     # ...
+
+    return results
 
 
 def send_frame(frame, bucket_name:str = BUCKET_NAME, image_path:str = IMAGE_PATH, object_name:str = OBJECT_NAME):
@@ -127,22 +133,28 @@ def main():
 
         # Преобразуем кадр в RGB
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        # cv2.imwrite(f"camera_{args.camera_id}_{datetime.now()}.png", cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR))
+        
+        # For testing if the rtsp server cameras work
+        # frame_name = f"images/test_records/camera_{args.camera_id}_{datetime.now()}.png" 
+        # cv2.imwrite(frame_name, cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR))
         # break
 
         # Используем первую модель для обнаружения людей
         results = model_for_cut(frame_rgb, classes=[0], verbose=False)
         
-        results_jewelry = run_jewelry_detector(frame_rgb)
-        for k in results_jewelry.keys():
-            if results_jewelry[k]:
-                send_signal(prepare_signal(
-                                violation_type=VIOLATIONS_NAMES[2]["slug"],
-                                description=VIOLATIONS_NAMES[2]["description"], 
-                                bucket_name=BUCKET_NAME, 
-                                object_name=f"{OBJECT_NAME}_cam{args.camera_id}"
-                            ))
-                send_frame(frame)
+        results_jewelry = run_jewelry_detector(frame_rgb, args.camera_id)
+        if results_jewelry is not None:
+            for k in results_jewelry.keys():
+                if results_jewelry[k]:
+                    send_signal(prepare_signal(
+                                    violation_type=VIOLATIONS_NAMES[2]["slug"],
+                                    description=VIOLATIONS_NAMES[2]["description"], 
+                                    bucket_name=BUCKET_NAME, 
+                                    object_name=f"{OBJECT_NAME}_cam{args.camera_id}"
+                                ))
+                    send_frame(frame)
+        else:
+            print("No violance in decoration was detected!")
 
         for result in results:
             boxes = result.boxes

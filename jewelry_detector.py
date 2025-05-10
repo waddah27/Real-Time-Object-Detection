@@ -13,7 +13,7 @@ class RegionObjectClassifier(nn.Module):
         super(RegionObjectClassifier, self).__init__()
 
         # Загрузка ResNet18 (без предобученных весов для инференса)
-        self.backbone = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=pretrained)
+        self.backbone = torch.hub.load('pytorch/vision', 'resnet18', pretrained=pretrained)
 
         # Удаляем последний полносвязный слой
         num_features = self.backbone.fc.in_features
@@ -67,7 +67,7 @@ def init_models(classifier_model_path):
     print(f"Инициализация моделей на устройстве: {device}")
     
     # Загрузка модели позы
-    pose_model = YOLO('yolo11x-pose.pt')
+    pose_model = YOLO('models/yolo11x-pose.pt')
     
     # Загрузка классификатора украшений
     classifier_model = RegionObjectClassifier(num_region_types=4, pretrained=False)
